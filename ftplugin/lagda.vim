@@ -1,0 +1,1 @@
+ftplugin/agda.vim
