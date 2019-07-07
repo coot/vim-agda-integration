@@ -105,11 +105,11 @@ endfun
 " goals
 let b:goals = []
 
-fun! FindAllGoals()
-  " Search for all goals
+fun! FindGoals()
+  " Find all lines in which there is at least one goal
   let view = winsaveview()
   let ps   = [] " list of lines
-  silent global /\v(\s\?\_s|\{\!.{-}\!\})/ :call add(ps, getpos(".")[1])
+  silent global /\v(^\?|\s\?|\{\!.{-}\!\})/ :call add(ps, getpos(".")[1])
   if IsLiterateAgda()
     " filter out lines which are not indside code LaTeX environment
     let ps_ = []
@@ -133,19 +133,31 @@ fun! EnumGoals(ps)
   let ps_ = []
   for lnum in a:ps
     " todo: support for multiple goals in a single line
-    let col = match(getline(lnum), '\v(\s@<=\?\_s?|\{\!.{-}\!\})')
-    call add(ps_, [lnum, col + 1])
+    let col = 0
+    let g:subs = split(getline(lnum), '\ze\v(\?|\{\!)')
+    for sub in g:subs
+      if col == 0 && sub =~ '^\v(\?|\{\!)'
+	call add(ps_, [lnum, col + 1])
+      endif
+      let col += len(sub)
+      if col >= len(getline(lnum))
+	break
+      endif
+      call add(ps_, [lnum, col + 1])
+    endfor
   endfor
   let b:goals = ps_
   return ps_
 endfun
 
-let s:efm_warning = '%+W%f:%l%.%c-%m,%Z\n,%+C%m'
-let s:efm_error   = '%+E%f:%l%.%c-%m,%+EFailed%m,%Z\n,%+C%m'
+fun! FindAllGoals()
+  " Find all goals and return their positions.
+  return EnumGoals(FindGoals())
+endfun
 
 " DisplayInfo message callback, invoked asyncronously by HandleAgdaMsg
 fun! HandleDisplayInfo(info)
-  let ps = EnumGoals(FindAllGoals())
+  let ps = FindAllGoals()
   let info = a:info["info"]
   let g:info = info
   let qflist = []
@@ -265,7 +277,7 @@ endfun
 fun! GetCurrentGoal()
   " Find current goal, this finds default to the previous goal.
   let [_, lnum, col, _] = getpos(".")
-  return len(filter(FindAllGoals(), {idx, val -> val <= lnum})) - 1
+  return len(filter(FindAllGoals(), {idx, val -> val[0] < lnum || val[0] == lnum && val[1] <= col })) - 1 " goals are enumerated from 0
 endfun
 
 fun! AgdaGoal(file)
