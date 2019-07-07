@@ -20,6 +20,9 @@ setl expandtab
 if !exists("s:agda")
   let s:agda = v:null
 endif
+let s:qf_open   = v:false
+let s:qf_append = v:false
+
 let g:AgdaVimDebug = v:false
 
 fun! StartAgdaInteraction()
@@ -164,7 +167,7 @@ fun! HandleDisplayInfo(info)
     " TODO
     " if the user changed buffers, the errors might end up in the wrong
     " quickfix list
-    call setqflist(qflist, 'r')
+    call setqflist(qflist, s:qf_append ? 'a' : 'r')
     call setqflist([], 'a',
 	  \ { 'lines': split(get(info, "warnings", ""), "\n")
 	  \ , 'efm': s:efm_warning
@@ -174,7 +177,7 @@ fun! HandleDisplayInfo(info)
 	  \ , 'efm': s:efm_error
 	  \ })
   elseif info["kind"] == "Error"
-    call setqflist([], 'r',
+    call setqflist([], s:qf_append ? 'a' : 'r',
 	  \ { 'lines': split(info["payload"], "\n")
 	  \ , 'efm': s:efm_error
 	  \ })
@@ -188,14 +191,19 @@ fun! HandleDisplayInfo(info)
     endif
   endif
 
+  let s:qf_append = v:true
+
   " TODO
   " this is called by various commands, it's not always makes sense to re-open
   " quickfix list
-  if len(getqflist()) > 0
-    copen
-    wincmd p
-  else
-    cclose
+  if s:qf_open
+    if len(getqflist()) > 0
+      copen
+      wincmd p
+      let s:qf_open = v:false
+    else
+      cclose
+    endif
   endif
 endfun
 
@@ -215,6 +223,8 @@ fun! AgdaLoad(bang, file)
   if a:bang == "!"
     update
   endif
+  let s:qf_open   = v:true
+  let s:qf_append = v:false
 
   if s:agda == v:null
     echoerr "agda is not running"
