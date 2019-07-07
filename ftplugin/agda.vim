@@ -14,6 +14,8 @@
 " large agda files make vim unresponsive.  Use a queue, and track
 " update in callbacks.
 
+setl expandtab
+
 " Nah, global reference
 if !exists("s:agda")
   let s:agda = v:null
