@@ -233,6 +233,20 @@ fun! HandleGiveAction(action)
   endif
 endfun
 
+fun! GoalContent()
+  " guard that we are inside {! !}
+  if searchpair('{!', '', '!}', 'bWn') == 0
+    return ""
+  endif
+  let view = winsaveview()
+  let x = @x
+  silent normal "xya{
+  call winrestview(view)
+  let g = @x
+  let @x = x
+  return matchstr(g, '^{!\zs.*\ze!}$')
+endfun
+
 fun! AgdaLoad(bang, file)
   if a:bang == "!"
     update
@@ -302,7 +316,8 @@ endfun
 fun! AgdaGoalType(file)
   let n = GetCurrentGoal()
   if n >= 0
-    let cmd = "(Cmd_goal_type Normalised " . n . " noRange \"\")"
+    let goal = GoalContent()
+    let cmd = "(Cmd_goal_type Normalised " . n . " noRange \"".goal."\")"
     echom cmd
     call AgdaCommand(a:file, cmd)
   endif
@@ -331,7 +346,8 @@ endfun
 fun! AgdaRefine(file) 
   let n = GetCurrentGoal()
   if n >= 0
-    let cmd = "(Cmd_refine " . n . " noRange \"\")"
+    let goal = GoalContent()
+    let cmd = "(Cmd_refine " . n . " noRange \"".goal."\")"
     call AgdaCommand(a:file, cmd)
   endif
 endfun
@@ -339,7 +355,8 @@ endfun
 fun! AgdaRefineOrIntro(file) 
   let n = GetCurrentGoal()
   if n >= 0
-    let cmd = "(Cmd_refine_or_intro True " . n . " noRange \"\")"
+    let goal = GoalContent()
+    let cmd = "(Cmd_refine_or_intro True " . n . " noRange \"".goal."\")"
     call AgdaCommand(a:file, cmd)
   endif
 endfun
