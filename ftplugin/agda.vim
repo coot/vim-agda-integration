@@ -170,6 +170,18 @@ endfun
 
 let s:efm_warning = '%f:%l%.%c-%m,%m'
 let s:efm_error   = '%f:%l%.%c-%m,Failed%m,%m'
+
+let s:popup_options =
+	  \ { "line": "cursor+1"
+	  \ , "col":  "cursor"
+	  \ , "pos": "topleft" 
+	  \ , "close": "button"
+	  \ , "border": [1,1,1,1]
+	  \ , "padding": [0,1,0,1]
+	  \ , "borderchars": ['─', '│', '─', '│', '┌', '┐', '┘', '└']
+	  \ , "moved": "word"
+	  \ }
+
 " DisplayInfo message callback, invoked asyncronously by HandleAgdaMsg
 fun! HandleDisplayInfo(info)
   let ps = FindAllGoals()
@@ -208,10 +220,27 @@ fun! HandleDisplayInfo(info)
 	  \ { 'lines': split(info["payload"], "\n")
 	  \ , 'efm': s:efm_error
 	  \ })
-  elseif info["kind"] == "CurrentGoal" || info["kind"] == "Version" || info["kind"] == "Intro"
+  elseif info["kind"] == "Auto"
     echohl WarningMsg
     echo info["payload"]
     echohl Normal
+  elseif info["kind"] == "CurrentGoal" || info["kind"] == "Intro"
+    echohl WarningMsg
+    " remove new lines from AgdaGoalType output
+    echom substitute(info["payload"], '\n', ' ', 'g')
+    echohl Normal
+  elseif info["kind"] == "Version"
+    echohl WarningMsg
+    echom info["version"]
+    echohl Normal
+  elseif info["kind"] == "RunningInfo"
+    echo info["message"]
+  elseif info["kind"] == "WhyInScope"
+    let opts = copy(s:popup_options)
+    call popup_create(split(info["payload"]), "\n"), opts)
+  elseif info["kind"] == "Context"
+    let opts = copy(s:popup_options)
+    call popup_create(split(info["payload"], "\n"), opts)
   else
     if g:AgdaVimDebug
       echom "DisplayInfo " . json_encode(info)
@@ -284,6 +313,14 @@ fun! AgdaCompile(file, backend)
   call AgdaCommand(a:file, "(Cmd_compile " . a:backend . " \"" . fnameescape(a:file) . "\" [])")
 endfun
 
+fun! AgdaAutoOne(file, args)
+  let n = GetCurrentGoal()
+  if n >= 0
+    let goal = GoalContent()
+    call AgdaCommand(a:file, "(Cmd_autoOne ".n." noRange \"".a:args." ".goal."\")")
+  endif
+endfun
+
 fun! AgdaAutoAll(file)
   " agda2-mode.el:917
   " busy
@@ -322,7 +359,6 @@ fun! AgdaGoal(file)
     let chan = job_getchannel(s:agda)
     let msg = ch_read(chan)
     echom msg
-    "JSON> cannot read: IOTCM \"src/plfa/Lists.lagda\" None Direct Cmd_solveOne 0 noRange
   endif
 endfun
 
@@ -365,6 +401,16 @@ fun! AgdaRefine(file)
   endif
 endfun
 
+fun! AgdaContext(file)
+  let n = GetCurrentGoal()
+  if n >= 0
+    let goal = GoalContent()
+    let cmd = "(Cmd_context Normalised " . n . " noRange \"".goal."\")"
+    call AgdaCommand(a:file, cmd)
+  endif
+endfun
+
+
 fun! AgdaRefineOrIntro(file) 
   let n = GetCurrentGoal()
   if n >= 0
@@ -379,15 +425,22 @@ endfun
 
 com! -buffer -bang AgdaLoad    :call AgdaLoad("<bang>", expand("%:p"))
 com! -buffer       AgdaMetas   :call AgdaMetas(expand("%:p"))
+com! -buffer       AgdaAbort   :call AgdaAbort(expand("%:p"))
 com! -buffer       AgdaRestart :call AgdaAbort(expand("%:p"))|call StartAgdaInteraction()
 com! -buffer       AgdaVersion :call AgdaShowVersion(expand("%:p"))
 com! -buffer       AgdaGoalType :call AgdaGoalType(expand("%:p"))
 com! -buffer       AgdaRefine  :call AgdaRefineOrIntro(expand("%:p"))
+com! -buffer -nargs=* AgdaAuto  :call AgdaAutoOne(expand("%:p"), expand(<q-args>))
 
 com! -buffer       StartAgda   :call StartAgdaInteraction()
 
-" The same map as in agda-mode
-nm <buffer> <silent> <c-c><c-l> :<c-u>AgdaLoad!<cr>
+" maps
+nm <buffer> <silent> <LocalLeader>l :<c-u>AgdaLoad!<cr>
+nm <buffer> <silent> <localLeader>t :<c-u>AgdaGoalType<cr>
+nm <buffer> <silent> <LocalLeader>r :<c-u>AgdaRefine<cr>
+nm <buffer> <silent> <LocalLeader>a :<c-u>AgdaAuto<cr>
+nm <buffer> <silent> <LocalLeader>s :<c-u>call AgdaWhyInScopeToplevel(expand("%:p"), GetKeyword())<cr>
+nm <buffer> <silent> <LocalLeader>c :<c-u>call AgdaContext(expand("%:p"))<cr>
 
 " start 'agda --interaction-json'
 call StartAgdaInteraction()
