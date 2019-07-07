@@ -20,6 +20,7 @@ setl expandtab
 if !exists("s:agda")
   let s:agda = v:null
 endif
+let g:AgdaVimDebug = v:false
 
 fun! StartAgdaInteraction()
   if s:agda == v:null
@@ -68,11 +69,13 @@ fun! HandleAgdaMsg(chan, msg)
       call HandleDisplayInfo(output)
     elseif output["kind"] == "GiveAction"
       call HandleGiveAction(output)
-    else
+    elseif g:AgdaVimDebug
       echom "HandleAgdaMsg <" . string(msg) . ">"
     endif
   else
-    echom "HandleAgdaMsg <" . string(msg) . ">"
+    if g:AgdaVimDebug
+      echom "HandleAgdaMsg <" . string(msg) . ">"
+    endif
   endif
 endfun
 
@@ -180,7 +183,9 @@ fun! HandleDisplayInfo(info)
     echo info["payload"]
     echohl Normal
   else
-    echom "DisplayInfo " . json_encode(info)
+    if g:AgdaVimDebug
+      echom "DisplayInfo " . json_encode(info)
+    endif
   endif
 
   " TODO
