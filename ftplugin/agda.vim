@@ -281,19 +281,17 @@ fun! AgdaGoalType(file)
     let cmd = "(Cmd_goal_type Normalised " . n . " noRange \"\")"
     echom cmd
     call AgdaCommand(a:file, cmd)
-    "JSON> cannot read: IOTCM \"src/plfa/Lists.lagda\" None Direct Cmd_goal_type Normalised 0 noRange \"\"
   endif
 endfun
 
 fun! AgdaShowModuleContentsToplevel(file)
-  let cmd = "(Cmd_show_module_contents_toplevel Normalise \"\")"
+  let cmd = "(Cmd_show_module_contents_toplevel Normalised \"\")"
   call AgdaCommand(a:file, cmd)
 endfun
 
 fun! AgdaInferToplevel(file, expr)
-  let cmd = "(Cmd_infer_toplevel Normalise \"" . a:expr . "\")"
+  let cmd = "(Cmd_infer_toplevel Normalised \"" . a:expr . "\")"
   call AgdaCommand(a:file, cmd)
-  "JSON> cannot read: IOTCM ...
 endfun
 
 fun! AgdaShowVersion(file)
@@ -304,7 +302,6 @@ endfun
 fun! AgdaWhyInScopeToplevel(file, str)
   let cmd = "(Cmd_why_in_scope_toplevel \"" . a:str . "\")"
   call AgdaCommand(a:file, cmd)
-  "cannot read
 endfun
 
 fun! AgdaRefine(file) 
