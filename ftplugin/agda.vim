@@ -25,6 +25,19 @@ let s:qf_append = v:false
 
 let g:AgdaVimDebug = v:false
 
+fun! GetKeyword()
+  " expand("<cword>") does not work with unicode characters
+  let [_, start] = searchpos('[[:space:](){}\[\]|]', 'bnW', line("."))
+  let [_, end]   = searchpos('[[:space:](){}\[\]|]', 'nW', line("."))
+  let g:start = start
+  let g:end = end
+  if g:end > 0
+    return getline(".")[start:end-2]
+  else
+    return getline(".")[start:]
+  endif
+endfun
+
 fun! StartAgdaInteraction()
   if s:agda == v:null
     let s:agda = job_start(
