@@ -155,6 +155,8 @@ fun! FindAllGoals()
   return EnumGoals(FindGoals())
 endfun
 
+let s:efm_warning = '%f:%l%.%c-%m,%m'
+let s:efm_error   = '%f:%l%.%c-%m,Failed%m,%m'
 " DisplayInfo message callback, invoked asyncronously by HandleAgdaMsg
 fun! HandleDisplayInfo(info)
   let ps = FindAllGoals()
