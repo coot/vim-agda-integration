@@ -29,9 +29,7 @@ fun! GetKeyword()
   " expand("<cword>") does not work with unicode characters
   let [_, start] = searchpos('[[:space:](){}\[\]|]', 'bnW', line("."))
   let [_, end]   = searchpos('[[:space:](){}\[\]|]', 'nW', line("."))
-  let g:start = start
-  let g:end = end
-  if g:end > 0
+  if end > 0
     return getline(".")[start:end-2]
   else
     return getline(".")[start:]
@@ -341,11 +339,24 @@ fun! AgdaConstraints(file)
   call AgdaCommand(a:file, "Cmd_constraints")
 endfun
 
+fun! AtGoal()
+  let [_, lnum, col, _] = getpos(".")
+  let line = getline(".")
+  if line[col - 1] == "?"
+    return v:true
+  else
+    return searchpair('{!', '', '!}', 'bnW') != 0
+  endif
+endfun
 
 fun! GetCurrentGoal()
   " Find current goal, this finds default to the previous goal.
-  let [_, lnum, col, _] = getpos(".")
-  return len(filter(FindAllGoals(), {idx, val -> val[0] < lnum || val[0] == lnum && val[1] <= col })) - 1 " goals are enumerated from 0
+  if !AtGoal()
+    return -1
+  endif
+  let lnum = line(".")
+  let col  = col(".")
+  return len(filter(FindAllGoals(), {idx, val -> val[0] < lnum || val[0] == lnum && val[1] <= col })) - 1
 endfun
 
 fun! AgdaGoal(file)
