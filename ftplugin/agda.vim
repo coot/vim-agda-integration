@@ -122,7 +122,7 @@ fun! FindGoals()
   " Find all lines in which there is at least one goal
   let view = winsaveview()
   let ps   = [] " list of lines
-  silent global /\v(^\?|\s\?|\{\!.{-}\!\})/ :call add(ps, getpos(".")[1])
+  silent global /\v^(\s*--|\s*\{-|\s*-)@!.*(^\?|\s\?|\{\!.{-}\!\})/ :call add(ps, getpos(".")[1])
   if IsLiterateAgda()
     " filter out lines which are not indside code LaTeX environment
     let ps_ = []
@@ -237,9 +237,11 @@ fun! HandleDisplayInfo(info)
     echo info["message"]
   elseif info["kind"] == "WhyInScope"
     let opts = copy(s:popup_options)
+    let opts["title"] = "Why in scope?"
     call popup_create(split(info["payload"]), "\n"), opts)
   elseif info["kind"] == "Context"
     let opts = copy(s:popup_options)
+    let opts["title"] = "Context"
     call popup_create(split(info["payload"], "\n"), opts)
   else
     if g:AgdaVimDebug
@@ -431,6 +433,7 @@ com! -buffer       AgdaVersion :call AgdaShowVersion(expand("%:p"))
 com! -buffer       AgdaGoalType :call AgdaGoalType(expand("%:p"))
 com! -buffer       AgdaRefine  :call AgdaRefineOrIntro(expand("%:p"))
 com! -buffer -nargs=* AgdaAuto  :call AgdaAutoOne(expand("%:p"), expand(<q-args>))
+" com! -buffer       AgdaToggleImplicitArgs :call AgdaCommand(expand("%:p"), "ToggleImplicitArgs")
 
 com! -buffer       StartAgda   :call StartAgdaInteraction()
 
