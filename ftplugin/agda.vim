@@ -103,6 +103,16 @@ fun! HandleAgdaMsg(chan, msg)
       call HandleDisplayInfo(output)
     elseif output["kind"] == "GiveAction"
       call HandleGiveAction(output)
+    elseif output["kind"] == "Status"
+      let b:AgdaChecked = output["status"]["checked"]
+    elseif output["kind"] == "RunningInfo"
+      echohl WarningMsg
+      for msg in split(output["message"], "\n")
+	echom msg
+      endfor
+      echohl Normal
+    elseif output["kind"] == "InteractionPoints"
+      let b:AgdaInteractionPoints = output["interactionPoints"]
     elseif g:AgdaVimDebug
       echom "HandleAgdaMsg <" . string(msg) . ">"
     endif
@@ -189,6 +199,8 @@ endfun
 let s:efm_warning = '%f:%l%.%c-%m,%m'
 let s:efm_error   = '%f:%l%.%c-%m,Failed%m,%m'
 
+let b:AgdaChecked = v:false
+
 let s:popup_options =
 	  \ { "line": "cursor+1"
 	  \ , "col":  "cursor"
@@ -202,7 +214,6 @@ let s:popup_options =
 
 " DisplayInfo message callback, invoked asyncronously by HandleAgdaMsg
 fun! HandleDisplayInfo(info)
-  let ps = FindAllGoals()
   let info = a:info["info"]
   let g:info = info
   let qflist = []
@@ -251,9 +262,7 @@ fun! HandleDisplayInfo(info)
     echohl WarningMsg
     echom info["version"]
     echohl Normal
-  elseif info["kind"] == "RunningInfo"
-    echo info["message"]
-  elseif info["kind"] == "WhyInScope"
+  elseif kind == "WhyInScope"
     let opts = copy(s:popup_options)
     let opts["title"] = "Why in scope?"
     call popup_create(split(info["payload"]), "\n"), opts)
