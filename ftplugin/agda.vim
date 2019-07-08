@@ -25,6 +25,12 @@ let s:qf_append = v:false
 
 let g:AgdaVimDebug = v:false
 
+if !exists("g:AgdaArgs")
+  " the list of arguments passed to agda
+  " the plugin will add `--interaction-json` as the first argument.
+  let g:AgdaArgs = []
+endif
+
 fun! GetKeyword()
   " expand("<cword>") does not work with unicode characters
   let [_, start] = searchpos('[[:space:](){}\[\]|]', 'bnW', line("."))
@@ -36,10 +42,19 @@ fun! GetKeyword()
   endif
 endfun
 
-fun! StartAgdaInteraction()
+fun! StartAgdaInteraction(args)
+  if type(a:args) == v:t_string
+    let args = split(a:args, '\s\+')
+  elseif type(a:args) == v:t_list
+    let args = copy(a:args)
+  else
+    echoerr "Wrong a:args type passed to StartAgdaInteraction"
+    return
+  endif
+  let cmd = extend(["agda", "--interaction-json"], args)
   if s:agda == v:null
     let s:agda = job_start(
-          \ ["agda", "--interaction-json"],
+          \ cmd,
           \ { "out_cb": "HandleAgdaMsg"
 	  \ , "err_cb": "HandleAgdaErrorMsg"
           \ , "stoponexit": "term"
@@ -54,6 +69,11 @@ fun! StopAgdaInteraction()
   endif
   call job_stop(s:agda)
   let s:agda = v:null
+endfun
+
+fun! AgdaRestart(args)
+  call StopAgdaInteraction()
+  call StartAgdaInteraction(a:args)
 endfun
 
 fun! HandleAgdaErrMsg(chan, msg)
@@ -305,7 +325,6 @@ endfun
 
 fun! AgdaAbort(file)
   call AgdaCommand(a:file, "Cmd_abort")
-  let s:agda = v:null
 endfun
 
 fun! AgdaCompile(file, backend)
@@ -433,13 +452,14 @@ fun! AgdaRefineOrIntro(file)
   endif
 endfun
 
+
 " Cmd_why_in_scope index noRange content
 " Cmd_why_in_scope_toplevel content
 
 com! -buffer -bang AgdaLoad    :call AgdaLoad("<bang>", expand("%:p"))
 com! -buffer       AgdaMetas   :call AgdaMetas(expand("%:p"))
 com! -buffer       AgdaAbort   :call AgdaAbort(expand("%:p"))
-com! -buffer       AgdaRestart :call AgdaAbort(expand("%:p"))|call StartAgdaInteraction()
+com! -buffer -nargs=? AgdaRestart :call AgdaRestart(expand(<q-args>))
 com! -buffer       AgdaVersion :call AgdaShowVersion(expand("%:p"))
 com! -buffer       AgdaGoalType :call AgdaGoalType(expand("%:p"))
 com! -buffer       AgdaRefine  :call AgdaRefineOrIntro(expand("%:p"))
@@ -456,5 +476,9 @@ nm <buffer> <silent> <LocalLeader>a :<c-u>AgdaAuto<cr>
 nm <buffer> <silent> <LocalLeader>s :<c-u>call AgdaWhyInScopeToplevel(expand("%:p"), GetKeyword())<cr>
 nm <buffer> <silent> <LocalLeader>c :<c-u>call AgdaContext(expand("%:p"))<cr>
 
-" start 'agda --interaction-json'
-call StartAgdaInteraction()
+" start `agda --interaction-json`; if you need to start with different
+" arguments you can use, or set g:AgdaArgs
+" ```
+" AgdaRestart --termination-depth=2
+" ```
+call StartAgdaInteraction(g:AgdaArgs)
