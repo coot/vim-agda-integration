@@ -24,6 +24,7 @@ let s:qf_open   = v:false
 let s:qf_append = v:false
 
 let g:AgdaVimDebug = v:false
+let b:AgdaInteractionPoints = []
 
 if !exists("g:AgdaArgs")
   " the list of arguments passed to agda
@@ -215,9 +216,10 @@ let s:popup_options =
 " DisplayInfo message callback, invoked asyncronously by HandleAgdaMsg
 fun! HandleDisplayInfo(info)
   let info = a:info["info"]
-  let g:info = info
+  let kind = info["kind"]
   let qflist = []
-  if info["kind"] == "AllGoalsWarnings"
+  if kind == "AllGoalsWarnings"
+    let ps = FindAllGoals()
     let goals = split(get(info, "goals", ""), "\n")
     let n = 0
     for goal in goals
@@ -244,21 +246,21 @@ fun! HandleDisplayInfo(info)
 	  \ { 'lines': split(get(info, "errors", ""), "\n")
 	  \ , 'efm': s:efm_error
 	  \ })
-  elseif info["kind"] == "Error"
+  elseif kind == "Error"
     call setqflist([], s:qf_append ? 'a' : 'r',
 	  \ { 'lines': split(info["payload"], "\n")
 	  \ , 'efm': s:efm_error
 	  \ })
-  elseif info["kind"] == "Auto"
+  elseif kind == "Auto"
     echohl WarningMsg
     echo info["payload"]
     echohl Normal
-  elseif info["kind"] == "CurrentGoal" || info["kind"] == "Intro"
+  elseif kind == "CurrentGoal" || kind == "Intro"
     echohl WarningMsg
     " remove new lines from AgdaGoalType output
     echom substitute(info["payload"], '\n', ' ', 'g')
     echohl Normal
-  elseif info["kind"] == "Version"
+  elseif kind == "Version"
     echohl WarningMsg
     echom info["version"]
     echohl Normal
@@ -266,7 +268,7 @@ fun! HandleDisplayInfo(info)
     let opts = copy(s:popup_options)
     let opts["title"] = "Why in scope?"
     call popup_create(split(info["payload"]), "\n"), opts)
-  elseif info["kind"] == "Context"
+  elseif kind == "Context"
     let opts = copy(s:popup_options)
     let opts["title"] = "Context"
     call popup_create(split(info["payload"], "\n"), opts)
