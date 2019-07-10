@@ -410,18 +410,28 @@ fun! AgdaGoalType(file)
   if n >= 0
     let goal = GoalContent()
     let cmd = "(Cmd_goal_type Normalised " . n . " noRange \"".goal."\")"
-    echom cmd
     call AgdaCommand(a:file, cmd)
+  endif
+endfun
+
+fun! AgdaInferToplevel(file, expr)
+  let cmd = "(Cmd_infer_toplevel Normalised \"" . a:expr . "\")"
+  call AgdaCommand(a:file, cmd)
+endfun
+
+fun! AgdaInfer(file)
+  let n = GetCurrentGoal()
+  if n >= 0
+    let goal = GoalContent()
+    let cmd = "(Cmd_goal_type Normalised " . n . " noRange \"".goal."\")"
+    call AgdaCommand(a:file, cmd)
+  else
+    call AgdaInferToplevel(a:file, GetKeyword())
   endif
 endfun
 
 fun! AgdaShowModuleContentsToplevel(file)
   let cmd = "(Cmd_show_module_contents_toplevel Normalised \"\")"
-  call AgdaCommand(a:file, cmd)
-endfun
-
-fun! AgdaInferToplevel(file, expr)
-  let cmd = "(Cmd_infer_toplevel Normalised \"" . a:expr . "\")"
   call AgdaCommand(a:file, cmd)
 endfun
 
