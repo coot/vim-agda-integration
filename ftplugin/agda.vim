@@ -272,6 +272,14 @@ fun! HandleDisplayInfo(info)
     let opts = copy(s:popup_options)
     let opts["title"] = "Context"
     call popup_create(split(info["payload"], "\n"), opts)
+  elseif kind == "InferredType"
+    echohl WarningMsg
+    echo info["payload"]
+    echohl Normal
+  elseif kind == "HighlightingInfo"
+    echohl WarningMsg
+    echo get(get(info, "info", {"payload": "NO INFO"}), "payload", "NO PAYLOAD")
+    echohl Normal
   else
     if g:AgdaVimDebug
       echom "DisplayInfo " . json_encode(info)
@@ -477,21 +485,23 @@ endfun
 " Cmd_why_in_scope index noRange content
 " Cmd_why_in_scope_toplevel content
 
-com! -buffer -bang AgdaLoad    :call AgdaLoad("<bang>", expand("%:p"))
-com! -buffer       AgdaMetas   :call AgdaMetas(expand("%:p"))
-com! -buffer       AgdaAbort   :call AgdaAbort(expand("%:p"))
+com! -buffer -bang AgdaLoad       :call AgdaLoad("<bang>", expand("%:p"))
+com! -buffer       AgdaMetas      :call AgdaMetas(expand("%:p"))
+com! -buffer       AgdaAbort      :call AgdaAbort(expand("%:p"))
 com! -buffer -nargs=? AgdaRestart :call AgdaRestart(expand(<q-args>))
-com! -buffer       AgdaVersion :call AgdaShowVersion(expand("%:p"))
-com! -buffer       AgdaGoalType :call AgdaGoalType(expand("%:p"))
-com! -buffer       AgdaRefine  :call AgdaRefineOrIntro(expand("%:p"))
-com! -buffer -nargs=* AgdaAuto  :call AgdaAutoOne(expand("%:p"), expand(<q-args>))
+com! -buffer       AgdaVersion    :call AgdaShowVersion(expand("%:p"))
+com! -buffer       AgdaGoalType   :call AgdaGoalType(expand("%:p"))
+com! -buffer       AgdaRefine     :call AgdaRefineOrIntro(expand("%:p"))
+com! -buffer -nargs=* AgdaAuto    :call AgdaAutoOne(expand("%:p"), expand(<q-args>))
+com! -buffer -nargs=? AgdaInfer   :call AgdaInferToplevel(expand("%:p"), expand(<q-args>))
 " com! -buffer       AgdaToggleImplicitArgs :call AgdaCommand(expand("%:p"), "ToggleImplicitArgs")
 
-com! -buffer       StartAgda   :call StartAgdaInteraction()
+com! -buffer       AgdaStart   :call StartAgdaInteraction(g:AgdaArgs)
+com! -buffer       AgdaStop    :call StopAgdaInteraction()
 
 " maps
 nm <buffer> <silent> <LocalLeader>l :<c-u>AgdaLoad!<cr>
-nm <buffer> <silent> <localLeader>t :<c-u>AgdaGoalType<cr>
+nm <buffer> <silent> <localLeader>t :<c-u>call AgdaInfer(expand("%:p"))<cr>
 nm <buffer> <silent> <LocalLeader>r :<c-u>AgdaRefine<cr>
 nm <buffer> <silent> <LocalLeader>a :<c-u>AgdaAuto<cr>
 nm <buffer> <silent> <LocalLeader>s :<c-u>call AgdaWhyInScopeToplevel(expand("%:p"), GetKeyword())<cr>
