@@ -267,7 +267,7 @@ fun! HandleDisplayInfo(info)
   elseif kind == "WhyInScope"
     let opts = copy(s:popup_options)
     let opts["title"] = "Why in scope?"
-    call popup_create(split(info["payload"]), "\n"), opts)
+    call popup_create(split(info["payload"], "\n"), opts)
   elseif kind == "Context"
     let opts = copy(s:popup_options)
     let opts["title"] = "Context"
