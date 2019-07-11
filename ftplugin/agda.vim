@@ -481,6 +481,15 @@ fun! AgdaRefineOrIntro(file)
   endif
 endfun
 
+fun! AgdaCmdMakeCase(file)
+  let n = GetCurrentGoal()
+  if n >= 0
+    let goal = GoalContent()
+    let cmd = "(Cmd_make_case " . n . " noRange \"\")"
+    call AgdaCommand(a:file, cmd)
+  endif
+endfun
+
 
 " Cmd_why_in_scope index noRange content
 " Cmd_why_in_scope_toplevel content
