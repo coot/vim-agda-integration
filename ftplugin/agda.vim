@@ -176,8 +176,8 @@ fun! EnumGoals(ps)
   for lnum in a:ps
     " todo: support for multiple goals in a single line
     let col = 0
-    let g:subs = split(getline(lnum), '\ze\v(\?|\{\!)')
-    for sub in g:subs
+    let subs = split(getline(lnum), '\ze\v((\s|^)\?(\s|$)|\{\!)')
+    for sub in subs
       if col == 0 && sub =~ '^\v(\?|\{\!)'
 	call add(ps_, [lnum, col + 1])
       endif
