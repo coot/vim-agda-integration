@@ -453,12 +453,23 @@ fun! s:AgdaWhyInScopeToplevel(file, str)
   call s:AgdaCommand(a:file, cmd)
 endfun
 
-fun! s:AgdaWhyInScope(file, str)
-  let n = s:GetCurrentGoal()
-  if n >= 0
-    let cmd = "(Cmd_why_in_scope " . n . " noRange \""  . a:str . "\")"
-    call s:AgdaCommand(a:file, cmd)
+fun! s:AgdaWhyInScope(file, ...)
+  if a:0 == 0
+    echoerr "no arguments given"
+    return
+  elseif a:0 == 1
+    let str = a:1
+    let n   = s:GetCurrentGoal()
+    if n < 0
+      echoerr "not at a goal"
+      return
+    endif
+  else
+    let n   = a:1
+    let str = a:2
   endif
+  let cmd = "(Cmd_why_in_scope " . n . " noRange \""  . str . "\")"
+  call s:AgdaCommand(a:file, cmd)
 endfun
 
 fun! s:AgdaRefine(file) 
@@ -513,6 +524,7 @@ com! -buffer -nargs=? AgdaInfer    :call <SID>AgdaInferToplevel(expand("%:p"), e
 "      \ :call s:AgdaCommand(expand("%:p"), "ToggleImplicitArgs")
 com! -buffer          AgdaStart    :call <SID>StartAgdaInteraction(g:AgdaArgs)
 com! -buffer          AgdaStop     :call <SID>StopAgdaInteraction()
+com! -buffer -nargs=? AgdaWhyInScope :call <SID>AgdaWhyInScope(expand("%:p"), expand(<q-args>))
 
 " maps
 nm <buffer> <silent> <LocalLeader>l :<c-u>AgdaLoad!<cr>
