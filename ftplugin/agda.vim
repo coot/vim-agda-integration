@@ -32,7 +32,7 @@ if !exists("g:AgdaArgs")
   let g:AgdaArgs = []
 endif
 
-fun! GetKeyword()
+fun! s:GetKeyword()
   " expand("<cword>") does not work with unicode characters
   let [_, start] = searchpos('[[:space:](){}\[\]|]', 'bnW', line("."))
   let [_, end]   = searchpos('[[:space:](){}\[\]|]', 'nW', line("."))
@@ -43,28 +43,28 @@ fun! GetKeyword()
   endif
 endfun
 
-fun! StartAgdaInteraction(args)
+fun! s:StartAgdaInteraction(args)
   if type(a:args) == v:t_string
     let args = split(a:args, '\s\+')
   elseif type(a:args) == v:t_list
     let args = copy(a:args)
   else
-    echoerr "Wrong a:args type passed to StartAgdaInteraction"
+    echoerr "Wrong a:args type passed to s:StartAgdaInteraction"
     return
   endif
   let cmd = extend(["agda", "--interaction-json"], args)
   if s:agda == v:null
     let s:agda = job_start(
           \ cmd,
-          \ { "out_cb": "HandleAgdaMsg"
-	  \ , "err_cb": "HandleAgdaErrorMsg"
+          \ { "out_cb": function("<SID>HandleAgdaMsg")
+	  \ , "err_cb": function("<SID>HandleAgdaErrMsg")
           \ , "stoponexit": "term"
           \ })
   endif
   return s:agda
 endfun
 
-fun! StopAgdaInteraction()
+fun! s:StopAgdaInteraction()
   if s:agda == v:null
     return
   endif
@@ -72,18 +72,18 @@ fun! StopAgdaInteraction()
   let s:agda = v:null
 endfun
 
-fun! AgdaRestart(args)
-  call StopAgdaInteraction()
-  call StartAgdaInteraction(a:args)
+fun! s:AgdaRestart(args)
+  call s:StopAgdaInteraction()
+  call s:StartAgdaInteraction(a:args)
 endfun
 
-fun! HandleAgdaErrMsg(chan, msg)
+fun! s:HandleAgdaErrMsg(chan, msg)
   echohl ErrorMsg
   echom msg
   echohl Normal
 endfun
 
-fun! HandleAgdaMsg(chan, msg)
+fun! s:HandleAgdaMsg(chan, msg)
   " This is only called when messages are not read from the corresponding
   " channel.
   if a:msg =~# '^JSON> '
@@ -101,9 +101,9 @@ fun! HandleAgdaMsg(chan, msg)
   endtry
   if type(output) == 4
     if output["kind"] == "DisplayInfo"
-      call HandleDisplayInfo(output)
+      call s:HandleDisplayInfo(output)
     elseif output["kind"] == "GiveAction"
-      call HandleGiveAction(output)
+      call s:HandleGiveAction(output)
     elseif output["kind"] == "Status"
       let b:AgdaChecked = output["status"]["checked"]
     elseif output["kind"] == "RunningInfo"
@@ -115,16 +115,16 @@ fun! HandleAgdaMsg(chan, msg)
     elseif output["kind"] == "InteractionPoints"
       let b:AgdaInteractionPoints = output["interactionPoints"]
     elseif g:AgdaVimDebug
-      echom "HandleAgdaMsg <" . string(msg) . ">"
+      echom "s:HandleAgdaMsg <" . string(msg) . ">"
     endif
   else
     if g:AgdaVimDebug
-      echom "HandleAgdaMsg <" . string(msg) . ">"
+      echom "s:HandleAgdaMsg <" . string(msg) . ">"
     endif
   endif
 endfun
 
-fun! AgdaCommand(file, cmd)
+fun! s:AgdaCommand(file, cmd)
   " TODO: process busy state
   if s:agda == v:null
     echoerr "agda is not running"
@@ -140,19 +140,19 @@ fun! AgdaCommand(file, cmd)
             \ . "\n")
 endfunc
 
-fun! IsLiterateAgda()
+fun! s:IsLiterateAgda()
   return expand("%:e") == "lagda"
 endfun
 
 " goals
 let b:goals = []
 
-fun! FindGoals()
+fun! s:FindGoals()
   " Find all lines in which there is at least one goal
   let view = winsaveview()
   let ps   = [] " list of lines
   silent global /\v^(\s*--|\s*\{-|\s*-)@!.*(^\?|\s\?|\{\!.{-}\!\})/ :call add(ps, getpos(".")[1])
-  if IsLiterateAgda()
+  if s:IsLiterateAgda()
     " filter out lines which are not indside code LaTeX environment
     let ps_ = []
     for l in ps
@@ -192,9 +192,9 @@ fun! EnumGoals(ps)
   return ps_
 endfun
 
-fun! FindAllGoals()
+fun! s:FindAllGoals()
   " Find all goals and return their positions.
-  return EnumGoals(FindGoals())
+  return EnumGoals(s:FindGoals())
 endfun
 
 let s:efm_warning = '%f:%l%.%c-%m,%m'
@@ -213,13 +213,13 @@ let s:popup_options =
 	  \ , "moved": "word"
 	  \ }
 
-" DisplayInfo message callback, invoked asyncronously by HandleAgdaMsg
-fun! HandleDisplayInfo(info)
+" DisplayInfo message callback, invoked asyncronously by s:HandleAgdaMsg
+fun! s:HandleDisplayInfo(info)
   let info = a:info["info"]
   let kind = info["kind"]
   let qflist = []
   if kind == "AllGoalsWarnings"
-    let ps = FindAllGoals()
+    let ps = s:FindAllGoals()
     let goals = split(get(info, "goals", ""), "\n")
     let n = 0
     for goal in goals
@@ -257,7 +257,7 @@ fun! HandleDisplayInfo(info)
     echohl Normal
   elseif kind == "CurrentGoal" || kind == "Intro"
     echohl WarningMsg
-    " remove new lines from AgdaGoalType output
+    " remove new lines from s:AgdaGoalType output
     echom substitute(info["payload"], '\n', ' ', 'g')
     echohl Normal
   elseif kind == "Version"
@@ -302,7 +302,7 @@ fun! HandleDisplayInfo(info)
   endif
 endfun
 
-fun! HandleGiveAction(action)
+fun! s:HandleGiveAction(action)
   " Cmd_refine_or_intro
   " Assuming we are on the right interaction point
   echom a:action
@@ -314,7 +314,7 @@ fun! HandleGiveAction(action)
   endif
 endfun
 
-fun! GoalContent()
+fun! s:GoalContent()
   " guard that we are inside {! !}
   if searchpair('{!', '', '!}', 'bWn') == 0
     return ""
@@ -328,7 +328,7 @@ fun! GoalContent()
   return matchstr(g, '^{!\zs.*\ze!}$')
 endfun
 
-fun! AgdaLoad(bang, file)
+fun! s:AgdaLoad(bang, file)
   if a:bang == "!"
     update
   endif
@@ -339,45 +339,45 @@ fun! AgdaLoad(bang, file)
     echoerr "agda is not running"
     return
   endif
-  call AgdaCommand(a:file, "(Cmd_load \"" . fnameescape(a:file) . "\" [])")
+  call s:AgdaCommand(a:file, "(Cmd_load \"" . fnameescape(a:file) . "\" [])")
 endfun
 
-fun! AgdaAbort(file)
-  call AgdaCommand(a:file, "Cmd_abort")
+fun! s:AgdaAbort(file)
+  call s:AgdaCommand(a:file, "Cmd_abort")
 endfun
 
 fun! AgdaCompile(file, backend)
   " agda2-mode.el:840
-  call AgdaCommand(a:file, "(Cmd_compile " . a:backend . " \"" . fnameescape(a:file) . "\" [])")
+  call s:AgdaCommand(a:file, "(Cmd_compile " . a:backend . " \"" . fnameescape(a:file) . "\" [])")
 endfun
 
-fun! AgdaAutoOne(file, args)
-  let n = GetCurrentGoal()
+fun! s:AgdaAutoOne(file, args)
+  let n = s:GetCurrentGoal()
   if n >= 0
-    let goal = GoalContent()
-    call AgdaCommand(a:file, "(Cmd_autoOne ".n." noRange \"".a:args." ".goal."\")")
+    let goal = s:GoalContent()
+    call s:AgdaCommand(a:file, "(Cmd_autoOne ".n." noRange \"".a:args." ".goal."\")")
   endif
 endfun
 
 fun! AgdaAutoAll(file)
   " agda2-mode.el:917
   " busy
-  call AgdaCommand(a:file, "Cmd_autoAll")
+  call s:AgdaCommand(a:file, "Cmd_autoAll")
 endfun
 
-fun! AgdaMetas(file)
+fun! s:AgdaMetas(file)
   " agda2-mode.el:1096
   " busy
-  call AgdaCommand(a:file, "Cmd_metas")
+  call s:AgdaCommand(a:file, "Cmd_metas")
 endfun
 
-fun! AgdaConstraints(file)
+fun! s:AgdaConstraints(file)
   " agda2-mode.el:1096
   " busy
-  call AgdaCommand(a:file, "Cmd_constraints")
+  call s:AgdaCommand(a:file, "Cmd_constraints")
 endfun
 
-fun! AtGoal()
+fun! s:AtGoal()
   let [_, lnum, col, _] = getpos(".")
   let line = getline(".")
   if line[col - 1] == "?"
@@ -387,138 +387,144 @@ fun! AtGoal()
   endif
 endfun
 
-fun! GetCurrentGoal()
+fun! s:GetCurrentGoal()
   " Find current goal, this finds default to the previous goal.
-  if !AtGoal()
+  if !s:AtGoal()
     return -1
   endif
   let lnum = line(".")
   let col  = col(".")
-  return len(filter(FindAllGoals(), {idx, val -> val[0] < lnum || val[0] == lnum && val[1] <= col })) - 1
+  return len(filter(s:FindAllGoals(), {idx, val -> val[0] < lnum || val[0] == lnum && val[1] <= col })) - 1
 endfun
 
-fun! AgdaGoal(file)
+fun! s:AgdaGoal(file)
   " agda2-mode.el:748
   " CMD <goal number> <goal range> <user input> args
-  let n = GetCurrentGoal()
+  let n = s:GetCurrentGoal()
   if n >= 0
     " testing commands
     " https://github.com/banacorn/agda-mode/blob/master/src/Command.re
     let cmd = "(Cmd_solveOne " . n . " noRange)"
     echom cmd
-    call AgdaCommand(a:file, cmd)
+    call s:AgdaCommand(a:file, cmd)
     let chan = job_getchannel(s:agda)
     let msg = ch_read(chan)
     echom msg
   endif
 endfun
 
-fun! AgdaGoalType(file)
-  let n = GetCurrentGoal()
+fun! s:AgdaGoalType(file)
+  let n = s:GetCurrentGoal()
   if n >= 0
-    let goal = GoalContent()
+    let goal = s:GoalContent()
     let cmd = "(Cmd_goal_type Normalised " . n . " noRange \"".goal."\")"
-    call AgdaCommand(a:file, cmd)
+    call s:AgdaCommand(a:file, cmd)
   endif
 endfun
 
-fun! AgdaInferToplevel(file, expr)
+fun! s:AgdaInferToplevel(file, expr)
   let cmd = "(Cmd_infer_toplevel Normalised \"" . a:expr . "\")"
-  call AgdaCommand(a:file, cmd)
+  call s:AgdaCommand(a:file, cmd)
 endfun
 
-fun! AgdaInfer(file)
-  let n = GetCurrentGoal()
+fun! s:AgdaInfer(file)
+  let n = s:GetCurrentGoal()
   if n >= 0
-    let goal = GoalContent()
+    let goal = s:GoalContent()
     let cmd = "(Cmd_goal_type Normalised " . n . " noRange \"".goal."\")"
-    call AgdaCommand(a:file, cmd)
+    call s:AgdaCommand(a:file, cmd)
   else
-    call AgdaInferToplevel(a:file, GetKeyword())
+    call s:AgdaInferToplevel(a:file, s:GetKeyword())
   endif
 endfun
 
-fun! AgdaShowModuleContentsToplevel(file)
-  let cmd = "(Cmd_show_module_contents_toplevel Normalised \"\")"
-  call AgdaCommand(a:file, cmd)
-endfun
+" fun! AgdaShowModuleContentsToplevel(file)
+  " let cmd = "(Cmd_show_module_contents_toplevel Normalised \"\")"
+  " call s:AgdaCommand(a:file, cmd)
+" endfun
 
-fun! AgdaShowVersion(file)
+fun! s:AgdaShowVersion(file)
   let cmd = "Cmd_show_version"
-  call AgdaCommand(a:file, cmd)
+  call s:AgdaCommand(a:file, cmd)
 endfun
 
-fun! AgdaWhyInScopeToplevel(file, str)
+fun! s:AgdaWhyInScopeToplevel(file, str)
   let cmd = "(Cmd_why_in_scope_toplevel \"" . a:str . "\")"
-  call AgdaCommand(a:file, cmd)
+  call s:AgdaCommand(a:file, cmd)
 endfun
 
-fun! AgdaRefine(file) 
-  let n = GetCurrentGoal()
+fun! s:AgdaWhyInScope(file, str)
+  let n = s:GetCurrentGoal()
   if n >= 0
-    let goal = GoalContent()
+    let cmd = "(Cmd_why_in_scope " . n . " noRange \""  . a:str . "\")"
+    call s:AgdaCommand(a:file, cmd)
+  endif
+endfun
+
+fun! s:AgdaRefine(file) 
+  let n = s:GetCurrentGoal()
+  if n >= 0
+    let goal = s:GoalContent()
     let cmd = "(Cmd_refine " . n . " noRange \"".goal."\")"
-    call AgdaCommand(a:file, cmd)
+    call s:AgdaCommand(a:file, cmd)
   endif
 endfun
 
-fun! AgdaContext(file)
-  let n = GetCurrentGoal()
+fun! s:AgdaContext(file)
+  let n = s:GetCurrentGoal()
   if n >= 0
-    let goal = GoalContent()
+    let goal = s:GoalContent()
     let cmd = "(Cmd_context Normalised " . n . " noRange \"".goal."\")"
-    call AgdaCommand(a:file, cmd)
+    call s:AgdaCommand(a:file, cmd)
   endif
 endfun
 
-
-fun! AgdaRefineOrIntro(file) 
-  let n = GetCurrentGoal()
+fun! s:AgdaRefineOrIntro(file) 
+  let n = s:GetCurrentGoal()
   if n >= 0
-    let goal = GoalContent()
+    let goal = s:GoalContent()
     let cmd = "(Cmd_refine_or_intro True " . n . " noRange \"".goal."\")"
-    call AgdaCommand(a:file, cmd)
+    call s:AgdaCommand(a:file, cmd)
   endif
 endfun
 
 fun! AgdaCmdMakeCase(file)
-  let n = GetCurrentGoal()
+  let n = s:GetCurrentGoal()
   if n >= 0
-    let goal = GoalContent()
+    let goal = s:GoalContent()
     let cmd = "(Cmd_make_case " . n . " noRange \"\")"
-    call AgdaCommand(a:file, cmd)
+    call s:AgdaCommand(a:file, cmd)
   endif
 endfun
-
 
 " Cmd_why_in_scope index noRange content
 " Cmd_why_in_scope_toplevel content
 
-com! -buffer -bang AgdaLoad       :call AgdaLoad("<bang>", expand("%:p"))
-com! -buffer       AgdaMetas      :call AgdaMetas(expand("%:p"))
-com! -buffer       AgdaAbort      :call AgdaAbort(expand("%:p"))
-com! -buffer -nargs=? AgdaRestart :call AgdaRestart(expand(<q-args>))
-com! -buffer       AgdaVersion    :call AgdaShowVersion(expand("%:p"))
-com! -buffer       AgdaGoalType   :call AgdaGoalType(expand("%:p"))
-com! -buffer       AgdaRefine     :call AgdaRefineOrIntro(expand("%:p"))
-com! -buffer -nargs=* AgdaAuto    :call AgdaAutoOne(expand("%:p"), expand(<q-args>))
-com! -buffer -nargs=? AgdaInfer   :call AgdaInferToplevel(expand("%:p"), expand(<q-args>))
-" com! -buffer       AgdaToggleImplicitArgs :call AgdaCommand(expand("%:p"), "ToggleImplicitArgs")
-
-com! -buffer       AgdaStart   :call StartAgdaInteraction(g:AgdaArgs)
-com! -buffer       AgdaStop    :call StopAgdaInteraction()
+com! -buffer -bang    AgdaLoad     :call <SID>AgdaLoad("<bang>", expand("%:p"))
+com! -buffer          AgdaMetas    :call <SID>AgdaMetas(expand("%:p"))
+com! -buffer          AgdaAbort    :call <SID>AgdaAbort(expand("%:p"))
+com! -buffer -nargs=? AgdaRestart  :call <SID>AgdaRestart(expand(<q-args>))
+com! -buffer          AgdaVersion  :call <SID>AgdaShowVersion(expand("%:p"))
+com! -buffer          AgdaGoalType :call <SID>AgdaGoalType(expand("%:p"))
+com! -buffer          AgdaRefine   :call <SID>AgdaRefineOrIntro(expand("%:p"))
+com! -buffer -nargs=* AgdaAuto     :call <SID>AgdaAutoOne(expand("%:p"), expand(<q-args>))
+com! -buffer -nargs=? AgdaInfer    :call <SID>AgdaInferToplevel(expand("%:p"), expand(<q-args>))
+" com! -buffer          AgdaToggleImplicitArgs
+"      \ :call s:AgdaCommand(expand("%:p"), "ToggleImplicitArgs")
+com! -buffer          AgdaStart    :call <SID>StartAgdaInteraction(g:AgdaArgs)
+com! -buffer          AgdaStop     :call <SID>StopAgdaInteraction()
 
 " maps
 nm <buffer> <silent> <LocalLeader>l :<c-u>AgdaLoad!<cr>
-nm <buffer> <silent> <localLeader>t :<c-u>call AgdaInfer(expand("%:p"))<cr>
+nm <buffer> <silent> <localLeader>t :<c-u>call <SID>AgdaInfer(expand("%:p"))<cr>
 nm <buffer> <silent> <LocalLeader>r :<c-u>AgdaRefine<cr>
 nm <buffer> <silent> <LocalLeader>a :<c-u>AgdaAuto<cr>
-nm <buffer> <silent> <LocalLeader>s :<c-u>call AgdaWhyInScopeToplevel(expand("%:p"), GetKeyword())<cr>
-nm <buffer> <silent> <LocalLeader>c :<c-u>call AgdaContext(expand("%:p"))<cr>
+nm <buffer> <silent> <LocalLeader>s :<c-u>call <SID>AgdaWhyInScopeToplevel(expand("%:p"), <SID>GetKeyword())<cr>
+nm <buffer> <silent> <LocalLeader>c :<c-u>call <SID>AgdaContext(expand("%:p"))<cr>
 
 " start `agda --interaction-json`; if you need to start with different
 " arguments you can use, or set g:AgdaArgs
 " ```
-" AgdaRestart --termination-depth=2
+" s:AgdaRestart --termination-depth=2
 " ```
-call StartAgdaInteraction(g:AgdaArgs)
+call s:StartAgdaInteraction(g:AgdaArgs)
