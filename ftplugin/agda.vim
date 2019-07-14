@@ -288,16 +288,11 @@ fun! s:HandleDisplayInfo(info)
 
   let s:qf_append = v:true
 
-  " TODO
-  " this is called by various commands, it's not always makes sense to re-open
-  " quickfix list
   if s:qf_open
     if len(getqflist()) > 0
       copen
       wincmd p
       let s:qf_open = v:false
-    else
-      cclose
     endif
   endif
 endfun
