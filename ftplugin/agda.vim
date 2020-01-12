@@ -248,7 +248,7 @@ fun! s:HandleDisplayInfo(info)
 	  \ })
   elseif kind == "Error"
     call setqflist([], s:qf_append ? 'a' : 'r',
-	  \ { 'lines': split(info["payload"], "\n")
+	  \ { 'lines': split(get(info,"payload", ""), "\n")
 	  \ , 'efm': s:efm_error
 	  \ })
   elseif kind == "Auto"
@@ -258,7 +258,7 @@ fun! s:HandleDisplayInfo(info)
   elseif kind == "CurrentGoal" || kind == "Intro"
     echohl WarningMsg
     " remove new lines from s:AgdaGoalType output
-    echom substitute(info["payload"], '\n', ' ', 'g')
+    echom substitute(get(info, "payload", ""), '\n', ' ', 'g')
     echohl Normal
   elseif kind == "Version"
     echohl WarningMsg
