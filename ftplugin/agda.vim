@@ -97,7 +97,7 @@ fun! s:HandleAgdaMsg(chan, msg)
     silent let output = json_decode(msg)
   catch /.*/
     echohl ErrorMsg
-    echom msg
+    echom "json decode error: " . msg
     echohl Normal
     return
   endtry
@@ -248,11 +248,15 @@ fun! s:HandleDisplayInfo(info)
 	  \ { 'lines': split(get(info, "errors", ""), "\n")
 	  \ , 'efm': s:efm_error
 	  \ })
-  elseif kind == "Error"
+  elseif kind == "Error" && has_key(info, "payload")
     call setqflist([], s:qf_append ? 'a' : 'r',
 	  \ { 'lines': split(get(info,"payload", ""), "\n")
 	  \ , 'efm': s:efm_error
 	  \ })
+  elseif kind == "Error" && has_key(info, "message")
+    echohl ErrorMsg
+    echomsg info["message"]
+    echohl Normal
   elseif kind == "Auto"
     echohl WarningMsg
     echo info["payload"]
@@ -276,11 +280,16 @@ fun! s:HandleDisplayInfo(info)
     call popup_create(split(info["payload"], "\n"), opts)
   elseif kind == "InferredType"
     echohl WarningMsg
-    echo info["payload"]
+    let g:info = info
+    echomsg substitute(info["expr"], "\n", ' ', 'g')
     echohl Normal
   elseif kind == "HighlightingInfo"
     echohl WarningMsg
     echo get(get(info, "info", {"payload": "NO INFO"}), "payload", "NO PAYLOAD")
+    echohl Normal
+  elseif kind == "GoalSpecific"
+    echohl WarningMsg
+    echo get(get(info, "goalInfo", {"type": "NO TYPE"}), "type", "NO GOAL INFO")
     echohl Normal
   else
     if g:AgdaVimDebug
@@ -416,6 +425,10 @@ fun! s:AgdaGoalType(file)
     let goal = s:GoalContent()
     let cmd = "(Cmd_goal_type Normalised " . n . " noRange \"".goal."\")"
     call s:AgdaCommand(a:file, cmd)
+  else
+    echohl Warning
+    echo "not at goal"
+    echohl Normal
   endif
 endfun
 
@@ -516,8 +529,9 @@ com! -buffer          AgdaVersion  :call <SID>AgdaShowVersion(expand("%:p"))
 com! -buffer          AgdaGoalType :call <SID>AgdaGoalType(expand("%:p"))
 com! -buffer          AgdaRefine   :call <SID>AgdaRefineOrIntro(expand("%:p"))
 com! -buffer -nargs=* AgdaAuto     :call <SID>AgdaAutoOne(expand("%:p"), expand(<q-args>))
-com! -buffer -nargs=? AgdaInfer    :call <SID>AgdaInferToplevel(expand("%:p"), expand(<q-args>))
-" com! -buffer          AgdaToggleImplicitArgs
+com! -buffer -nargs=+ AgdaInferTopLevel    :call <SID>AgdaInferToplevel(expand("%:p"), expand(<q-args>))
+com! -buffer          AgdaInfer    :call <SID>AgdaInfer(expand("%:p"))
+" com! -buffer        AgdaToggleImplicitArgs
 "      \ :call s:AgdaCommand(expand("%:p"), "ToggleImplicitArgs")
 com! -buffer          AgdaStart    :call <SID>StartAgdaInteraction(g:AgdaArgs)
 com! -buffer          AgdaStop     :call <SID>StopAgdaInteraction()
