@@ -15,6 +15,8 @@
 " update in callbacks.
 
 setl expandtab
+setl autoindent
+setl smartindent
 
 " Nah, global reference
 if !exists("s:agda")
